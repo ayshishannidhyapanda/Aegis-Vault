@@ -118,6 +118,7 @@ public class VaultContainer implements Closeable {
         }
 
         byte[] masterKey = null;
+        boolean success = false;
         try {
             this.raf = new RandomAccessFile(vaultPath.toFile(), "rw");
             this.channel = raf.getChannel();
@@ -128,12 +129,15 @@ public class VaultContainer implements Closeable {
             }
 
             ByteBuffer headerBuffer = ByteBuffer.allocate(VaultHeader.HEADER_SIZE);
-            channel.read(headerBuffer);
+            readFully(channel, headerBuffer);
+            headerBuffer.flip();
             this.header = VaultHeader.parse(headerBuffer.array());
 
             ByteBuffer encryptedVaultKeyBuffer = ByteBuffer.allocate(ENCRYPTED_VAULT_KEY_SIZE);
-            channel.read(encryptedVaultKeyBuffer);
-            byte[] encryptedVaultKey = encryptedVaultKeyBuffer.array();
+            readFully(channel, encryptedVaultKeyBuffer);
+            encryptedVaultKeyBuffer.flip();
+            byte[] encryptedVaultKey = new byte[ENCRYPTED_VAULT_KEY_SIZE];
+            encryptedVaultKeyBuffer.get(encryptedVaultKey);
 
             masterKey = Argon2KeyDeriver.deriveKey(password, header.getSalt());
 
@@ -144,7 +148,7 @@ public class VaultContainer implements Closeable {
             }
 
             ByteBuffer metadataLengthBuffer = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN);
-            channel.read(metadataLengthBuffer);
+            readFully(channel, metadataLengthBuffer);
             metadataLengthBuffer.flip();
             int metadataLength = metadataLengthBuffer.getInt();
 
@@ -153,16 +157,47 @@ public class VaultContainer implements Closeable {
             }
 
             ByteBuffer encryptedMetadataBuffer = ByteBuffer.allocate(metadataLength);
-            channel.read(encryptedMetadataBuffer);
-            byte[] decryptedMetadata = AesGcmCipher.decrypt(encryptedMetadataBuffer.array(), vaultKey);
+            readFully(channel, encryptedMetadataBuffer);
+            encryptedMetadataBuffer.flip();
+            byte[] encryptedMetadata = new byte[metadataLength];
+            encryptedMetadataBuffer.get(encryptedMetadata);
+            byte[] decryptedMetadata = AesGcmCipher.decrypt(encryptedMetadata, vaultKey);
             this.fileData = deserializeMetadata(decryptedMetadata);
 
             this.open = true;
+            success = true;
         } catch (IOException e) {
             throw new VaultException("Failed to open vault file", e);
         } finally {
             Argon2KeyDeriver.zeroBytes(masterKey);
             Argon2KeyDeriver.zeroChars(password);
+            if (!success) {
+                closeResources();
+            }
+        }
+    }
+
+    private void closeResources() {
+        try {
+            if (lock != null) {
+                lock.release();
+                lock = null;
+            }
+        } catch (IOException ignored) {
+        }
+        try {
+            if (channel != null) {
+                channel.close();
+                channel = null;
+            }
+        } catch (IOException ignored) {
+        }
+        try {
+            if (raf != null) {
+                raf.close();
+                raf = null;
+            }
+        } catch (IOException ignored) {
         }
     }
 
@@ -236,21 +271,7 @@ public class VaultContainer implements Closeable {
             vaultKey = null;
         }
 
-        try {
-            if (lock != null) {
-                lock.release();
-                lock = null;
-            }
-            if (channel != null) {
-                channel.close();
-                channel = null;
-            }
-            if (raf != null) {
-                raf.close();
-                raf = null;
-            }
-        } catch (IOException ignored) {
-        }
+        closeResources();
 
         this.open = false;
         this.header = null;
@@ -279,6 +300,9 @@ public class VaultContainer implements Closeable {
             lengthBuffer.flip();
             channel.write(lengthBuffer);
             channel.write(ByteBuffer.wrap(encrypted));
+
+            long newFileSize = channel.position();
+            channel.truncate(newFileSize);
 
             channel.force(true);
         } catch (IOException e) {
@@ -326,5 +350,14 @@ public class VaultContainer implements Closeable {
         }
 
         return result;
+    }
+
+    private void readFully(FileChannel channel, ByteBuffer buffer) throws IOException {
+        while (buffer.hasRemaining()) {
+            int bytesRead = channel.read(buffer);
+            if (bytesRead == -1) {
+                throw new IOException("Unexpected end of file");
+            }
+        }
     }
 }

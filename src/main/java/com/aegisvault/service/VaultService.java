@@ -23,12 +23,21 @@ import java.io.Closeable;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class VaultService implements Closeable {
+
+    private static final long DEFAULT_TIMEOUT_MS = 15 * 60 * 1000;
 
     private VaultContainer container;
     private VirtualFileSystem vfs;
     private Path currentVaultPath;
+    private Timer autoLockTimer;
+    private final AtomicLong lastActivityTime = new AtomicLong();
+    private long autoLockTimeoutMs = DEFAULT_TIMEOUT_MS;
+    private Runnable onAutoLockCallback;
 
     public void createVault(Path vaultPath, char[] password) {
         if (isVaultOpen()) {
@@ -40,6 +49,7 @@ public class VaultService implements Closeable {
             container.create(password.clone());
             vfs = new VirtualFileSystem(container);
             currentVaultPath = vaultPath;
+            startAutoLockTimer();
         } catch (Exception e) {
             close();
             throw e;
@@ -58,6 +68,7 @@ public class VaultService implements Closeable {
             container.open(password.clone());
             vfs = new VirtualFileSystem(container);
             currentVaultPath = vaultPath;
+            startAutoLockTimer();
         } catch (Exception e) {
             close();
             throw e;
@@ -68,6 +79,8 @@ public class VaultService implements Closeable {
 
     @Override
     public void close() {
+        stopAutoLockTimer();
+
         if (vfs != null) {
             vfs = null;
         }
@@ -90,56 +103,112 @@ public class VaultService implements Closeable {
 
     public List<VfsEntry> listDirectory(String path) {
         ensureVaultOpen();
+        touchActivity();
         return vfs.list(path);
     }
 
     public VfsEntry createDirectory(String path) {
         ensureVaultOpen();
+        touchActivity();
         return vfs.createDirectory(path);
     }
 
     public VfsEntry createFile(String path, byte[] content) {
         ensureVaultOpen();
+        touchActivity();
         return vfs.createFile(path, content);
     }
 
     public byte[] readFile(String path) {
         ensureVaultOpen();
+        touchActivity();
         return vfs.readFile(path);
     }
 
     public void writeFile(String path, byte[] content) {
         ensureVaultOpen();
+        touchActivity();
         vfs.writeFile(path, content);
     }
 
     public void delete(String path) {
         ensureVaultOpen();
+        touchActivity();
         vfs.delete(path);
     }
 
     public void move(String source, String destination) {
         ensureVaultOpen();
+        touchActivity();
         vfs.move(source, destination);
     }
 
     public boolean exists(String path) {
         ensureVaultOpen();
+        touchActivity();
         return vfs.exists(path);
     }
 
     public VfsEntry getEntry(String path) {
         ensureVaultOpen();
+        touchActivity();
         return vfs.getEntry(path);
     }
 
     public void changePassword(char[] currentPassword, char[] newPassword) {
         ensureVaultOpen();
+        touchActivity();
         try {
             container.changePassword(currentPassword.clone(), newPassword.clone());
         } finally {
             zeroPassword(currentPassword);
             zeroPassword(newPassword);
+        }
+    }
+
+    public void setAutoLockTimeout(long timeoutMs) {
+        this.autoLockTimeoutMs = timeoutMs;
+        if (isVaultOpen()) {
+            stopAutoLockTimer();
+            startAutoLockTimer();
+        }
+    }
+
+    public long getAutoLockTimeout() {
+        return autoLockTimeoutMs;
+    }
+
+    public void setOnAutoLockCallback(Runnable callback) {
+        this.onAutoLockCallback = callback;
+    }
+
+    public void touchActivity() {
+        lastActivityTime.set(System.currentTimeMillis());
+    }
+
+    private void startAutoLockTimer() {
+        touchActivity();
+        autoLockTimer = new Timer("VaultAutoLock", true);
+        autoLockTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                if (isVaultOpen()) {
+                    long elapsed = System.currentTimeMillis() - lastActivityTime.get();
+                    if (elapsed >= autoLockTimeoutMs) {
+                        close();
+                        if (onAutoLockCallback != null) {
+                            onAutoLockCallback.run();
+                        }
+                    }
+                }
+            }
+        }, 60000, 60000);
+    }
+
+    private void stopAutoLockTimer() {
+        if (autoLockTimer != null) {
+            autoLockTimer.cancel();
+            autoLockTimer = null;
         }
     }
 

@@ -15,9 +15,221 @@ AegisVault-J is a **Java-only encrypted container system** that provides:
 - Cross-platform compatibility (Windows, macOS, Linux)
 - Strong cryptographic guarantees using modern algorithms
 
+### 1.1 What AegisVault-J IS
+
+AegisVault-J is a **digital safe** — an application that:
+
+- Creates a single encrypted file (`.avj`) that acts as a secure container
+- Allows users to **import** files into the encrypted container
+- Stores all imported files in encrypted form inside the vault
+- Allows users to **export** files to a chosen location when needed
+- Requires a password to unlock and access the contents
+
+**Analogy:** Think of it like a physical safe. You put documents inside, lock it, and they're protected. To use a document, you unlock the safe, take it out, use it, and put it back when done.
+
+### 1.2 What AegisVault-J IS NOT
+
+AegisVault-J is **NOT**:
+
+| It is NOT | Explanation |
+|-----------|-------------|
+| A mounted filesystem | Files are not accessible as a drive letter or folder |
+| A live encrypted folder | You cannot open files directly from within the vault |
+| Disk encryption | It does not encrypt your entire hard drive |
+| A transparent encryption layer | Files must be explicitly exported to use |
+| A replacement for BitLocker/FileVault | Those are OS-level disk encryption tools |
+
 ---
 
-## 2. Explicit Constraints (FROZEN)
+## 2. Usage Model (FROZEN)
+
+### 2.1 The Import-Export Security Model
+
+AegisVault-J follows a deliberate **Import → Encrypt → Lock → Export → Use → Delete → Re-Import** workflow:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     SECURE WORKFLOW                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   [External File]                                                │
+│         │                                                        │
+│         ▼                                                        │
+│   ┌─────────────┐                                                │
+│   │   IMPORT    │  ← File is encrypted and stored in vault      │
+│   └─────────────┘                                                │
+│         │                                                        │
+│         ▼                                                        │
+│   ┌─────────────────────────────────────┐                        │
+│   │     ENCRYPTED VAULT (.avj)          │  ← Safe at rest       │
+│   │  ┌───────────────────────────────┐  │                        │
+│   │  │ Encrypted File 1              │  │                        │
+│   │  │ Encrypted File 2              │  │                        │
+│   │  │ Encrypted File 3              │  │                        │
+│   │  └───────────────────────────────┘  │                        │
+│   └─────────────────────────────────────┘                        │
+│         │                                                        │
+│         ▼                                                        │
+│   ┌─────────────┐                                                │
+│   │   EXPORT    │  ← File is decrypted to chosen location       │
+│   └─────────────┘                                                │
+│         │                                                        │
+│         ▼                                                        │
+│   [Temporary Decrypted File]  ← USER'S RESPONSIBILITY           │
+│         │                                                        │
+│         ▼                                                        │
+│   ┌─────────────┐                                                │
+│   │    USE      │  ← Open with external application             │
+│   └─────────────┘                                                │
+│         │                                                        │
+│         ▼                                                        │
+│   ┌─────────────┐                                                │
+│   │   DELETE    │  ← User deletes the exported file             │
+│   └─────────────┘                                                │
+│         │                                                        │
+│         ▼                                                        │
+│   ┌─────────────┐                                                │
+│   │  RE-IMPORT  │  ← If modified, import updated version        │
+│   └─────────────┘                                                │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 2.2 Why This Model?
+
+**This is intentional and more secure for a Java-only system:**
+
+| Reason | Explanation |
+|--------|-------------|
+| **No kernel access** | Java cannot create virtual drives or mount filesystems without native code (FUSE, Dokany). This is a frozen constraint. |
+| **Clear security boundary** | The vault file is the security boundary. Once a file is exported, it leaves the protected zone. |
+| **User awareness** | Users explicitly see when files enter/leave the vault, promoting security consciousness. |
+| **No hidden temp files** | Unlike transparent encryption, there are no hidden decrypted copies the user doesn't know about. |
+| **Portability** | The vault file can be copied, backed up, or moved without special handling. |
+
+### 2.3 User Workflow
+
+#### Step 1: Create a Vault
+- User creates a new vault file (`.avj`)
+- User sets a strong password
+- Empty vault is created and locked
+
+#### Step 2: Unlock the Vault
+- User opens an existing vault file
+- User enters the password
+- Vault is unlocked and contents are viewable (as a list, not as files)
+
+#### Step 3: Import Files
+- User selects files/folders from their system
+- Files are encrypted and stored inside the vault
+- Original files remain unchanged (user may delete them)
+
+#### Step 4: View Contents
+- User sees a logical list of files/folders inside the vault
+- This is NOT a mounted drive — just a list view
+- Files cannot be "opened" directly from this view
+
+#### Step 5: Export Files
+- User selects files to export
+- User chooses a destination folder
+- Files are decrypted and written to the destination
+- **WARNING:** Exported files are unprotected
+
+#### Step 6: Use Exported Files
+- User opens exported files with appropriate applications
+- These files are outside the vault's protection
+- User is responsible for their security
+
+#### Step 7: Clean Up
+- User deletes exported files when done
+- If files were modified, user re-imports them to the vault
+
+#### Step 8: Lock the Vault
+- User closes the vault
+- Vault is locked and all keys are wiped from memory
+- Vault file remains encrypted on disk
+
+---
+
+## 3. Security Boundaries (FROZEN)
+
+### 3.1 What is Protected
+
+| Scenario | Protection Level |
+|----------|------------------|
+| Vault file at rest (locked) | ✅ **PROTECTED** — Encrypted with AES-256-GCM |
+| Vault file copied to USB | ✅ **PROTECTED** — Still encrypted |
+| Vault file sent via email | ✅ **PROTECTED** — Still encrypted |
+| Computer stolen (vault locked) | ✅ **PROTECTED** — Attacker cannot read contents |
+| Brute-force password attack | ✅ **PROTECTED** — Argon2id makes this extremely slow |
+
+### 3.2 What is NOT Protected
+
+| Scenario | Protection Level |
+|----------|------------------|
+| Vault unlocked, attacker has system access | ❌ **NOT PROTECTED** — Keys in memory |
+| Exported files on disk | ❌ **NOT PROTECTED** — User's responsibility |
+| Keylogger captures password | ❌ **NOT PROTECTED** — Application-level threat |
+| Malware reads JVM memory | ❌ **NOT PROTECTED** — Runtime threat |
+| Swap file contains decrypted data | ❌ **NOT PROTECTED** — OS-level, Java cannot control |
+| User shares their password | ❌ **NOT PROTECTED** — Human factor |
+
+### 3.3 Security Boundary Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    OUTSIDE SECURITY BOUNDARY                     │
+│                                                                  │
+│   • Exported files                                               │
+│   • User's password knowledge                                    │
+│   • Running system memory (while unlocked)                       │
+│   • Clipboard contents                                           │
+│   • Screen contents                                              │
+│                                                                  │
+├─────────────────────────────────────────────────────────────────┤
+│                    INSIDE SECURITY BOUNDARY                      │
+│                                                                  │
+│   • Vault file contents (when locked)                            │
+│   • Encrypted file data                                          │
+│   • Encrypted metadata                                           │
+│   • Vault key (encrypted with master key)                        │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 4. UI Behavior Rules (FROZEN)
+
+### 4.1 Vault Contents Display
+
+- Vault contents are displayed as a **logical list**, not as OS files
+- Users see file names, sizes, and dates — not actual files
+- Double-clicking a file does NOT open it (directories navigate, files show info)
+- There is no "Open" action that directly launches files
+
+### 4.2 Export Behavior
+
+- Export always requires user to choose a destination
+- UI MUST display a warning: "Exported files are not protected by the vault"
+- Exported files are the user's responsibility
+- Application does NOT track or manage exported files
+
+### 4.3 Import Behavior
+
+- Import copies files into the vault (does not move)
+- Original files remain unchanged
+- User should manually delete originals if desired
+
+### 4.4 Lock Behavior
+
+- Locking clears all keys from memory
+- Auto-lock triggers after configurable inactivity
+- UI returns to locked state immediately
+
+---
+
+## 5. Explicit Constraints (FROZEN)
 
 | Constraint | Value | Rationale |
 |------------|-------|-----------|
@@ -229,6 +441,27 @@ These decisions are **immutable** unless a critical security flaw is discovered:
 | 2026-01-20 | Implemented VirtualFileSystem with full directory/file operations | System |
 | 2026-01-20 | Implemented VaultService as orchestration layer | System |
 | 2026-01-20 | Added comprehensive tests for container, VFS, and service layers | System |
+| 2026-01-20 | Implemented JavaFX UI layer with MainApplication, MainController | System |
+| 2026-01-20 | Added PasswordDialog and ChangePasswordDialog components | System |
+| 2026-01-20 | Added ImportExportUtil for file/folder import and export | System |
+| 2026-01-20 | Added BackupUtil for vault backup operations | System |
+| 2026-01-20 | Created CSS stylesheet for UI styling | System |
+| 2026-01-20 | Added PasswordStrength utility with entropy calculation | System |
+| 2026-01-20 | Enhanced PasswordDialog with visual strength indicator | System |
+| 2026-01-20 | Added auto-lock feature with configurable inactivity timeout | System |
+| 2026-01-20 | Added tests for ImportExportUtil and BackupUtil | System |
+| 2026-01-20 | Created SECURITY.md with threat model documentation | System |
+| 2026-01-20 | Added Usage Model section defining import-export workflow | System |
+| 2026-01-20 | Added Security Boundaries section with clear protection scope | System |
+| 2026-01-20 | Added UI Behavior Rules for consistent user experience | System |
+| 2026-01-20 | Clarified what AegisVault-J IS and IS NOT | System |
+| 2026-01-20 | Added export security warning dialog in UI | System |
+| 2026-01-20 | Added auto-lock notification callback | System |
+| 2026-01-20 | Updated welcome screen with product description | System |
+| 2026-01-20 | Created PROJECT_STATUS.md with complete summary | System |
+| 2026-01-20 | Completed Phase A security audit — PASSED | Security |
+| 2026-01-20 | Created SECURITY_AUDIT.md with detailed findings | Security |
+| 2026-01-20 | Updated SECURITY.md with PasswordField limitation disclosure | Security |
 
 ---
 

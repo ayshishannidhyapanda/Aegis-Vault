@@ -15,10 +15,11 @@
  */
 package com.aegisvault;
 
+import com.aegisvault.ui.MainApplication;
+
 public class AegisVaultApplication {
 
     public static void main(String[] args) {
-        System.out.println("AegisVault-J - Encrypted Container System");
-        System.out.println("See docs/context.md for security scope and limitations.");
+        MainApplication.main(args);
     }
 }

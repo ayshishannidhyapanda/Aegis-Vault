@@ -1,0 +1,331 @@
+/*
+ * Copyright (c) 2026 Aegis Vault
+ * All rights reserved.
+ */
+
+.root {
+    -fx-font-family: "Segoe UI", "Arial", sans-serif;
+    -fx-font-size: 13px;
+    -fx-background-color: #f5f5f5;
+    -fx-base: #f5f5f5;
+    -fx-accent: #3498db;
+    -fx-focus-color: #3498db;
+    -fx-faint-focus-color: transparent;
+}
+
+.label {
+    -fx-text-fill: #2c3e50;
+}
+
+.menu-bar {
+    -fx-background-color: #2c3e50;
+    -fx-padding: 0;
+}
+
+.menu-bar .menu {
+    -fx-background-color: transparent;
+}
+
+.menu-bar .menu .label {
+    -fx-text-fill: white;
+}
+
+.menu-bar .menu:hover {
+    -fx-background-color: #34495e;
+}
+
+.menu-bar .menu:showing {
+    -fx-background-color: #34495e;
+}
+
+.menu-bar .context-menu {
+    -fx-background-color: white;
+}
+
+.menu-bar .context-menu .menu-item .label {
+    -fx-text-fill: #2c3e50;
+}
+
+.menu-bar .context-menu .menu-item:focused .label {
+    -fx-text-fill: #2c3e50;
+}
+
+.menu-item {
+    -fx-background-color: transparent;
+}
+
+.menu-item .label {
+    -fx-text-fill: #2c3e50;
+}
+
+.menu-item:focused {
+    -fx-background-color: #ecf0f1;
+}
+
+.menu-item:focused .label {
+    -fx-text-fill: #2c3e50;
+}
+
+.toolbar {
+    -fx-background-color: #ecf0f1;
+    -fx-border-color: #bdc3c7;
+    -fx-border-width: 0 0 1 0;
+}
+
+.toolbar .button {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+    -fx-background-radius: 3;
+    -fx-padding: 5 15;
+}
+
+.toolbar .button:hover {
+    -fx-background-color: #2980b9;
+    -fx-text-fill: white;
+}
+
+.toolbar .separator {
+    -fx-background-color: #bdc3c7;
+}
+
+.path-label {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2c3e50;
+}
+
+.list-view {
+    -fx-background-color: white;
+    -fx-border-color: #bdc3c7;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+}
+
+.list-view .list-cell {
+    -fx-background-color: white;
+    -fx-text-fill: #2c3e50;
+    -fx-padding: 10 12;
+    -fx-font-size: 13px;
+}
+
+.list-view .list-cell:empty {
+    -fx-background-color: white;
+}
+
+.list-view .list-cell:filled {
+    -fx-background-color: white;
+    -fx-text-fill: #2c3e50;
+}
+
+.list-view .list-cell:filled:selected {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+}
+
+.list-view .list-cell:filled:selected:focused {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+}
+
+.list-view .list-cell:filled:hover {
+    -fx-background-color: #e8f4fc;
+    -fx-text-fill: #2c3e50;
+}
+
+.list-view .list-cell:filled:selected:hover {
+    -fx-background-color: #2980b9;
+    -fx-text-fill: white;
+}
+
+.status-bar {
+    -fx-background-color: #ecf0f1;
+    -fx-border-color: #bdc3c7;
+    -fx-border-width: 1 0 0 0;
+}
+
+.status-bar .label {
+    -fx-text-fill: #555555;
+    -fx-font-size: 12px;
+}
+
+.welcome-title {
+    -fx-font-size: 48px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2c3e50;
+}
+
+.welcome-subtitle {
+    -fx-font-size: 18px;
+    -fx-text-fill: #555555;
+}
+
+.welcome-button {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+    -fx-padding: 15 40;
+    -fx-background-radius: 5;
+    -fx-cursor: hand;
+}
+
+.welcome-button:hover {
+    -fx-background-color: #2980b9;
+    -fx-text-fill: white;
+}
+
+.button {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+    -fx-background-radius: 3;
+    -fx-cursor: hand;
+    -fx-padding: 6 12;
+}
+
+.button:hover {
+    -fx-background-color: #2980b9;
+    -fx-text-fill: white;
+}
+
+.button:pressed {
+    -fx-background-color: #1a5276;
+    -fx-text-fill: white;
+}
+
+.button:focused {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+}
+
+.text-field, .password-field {
+    -fx-background-color: white;
+    -fx-border-color: #bdc3c7;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+    -fx-padding: 8;
+    -fx-text-fill: #2c3e50;
+    -fx-prompt-text-fill: #95a5a6;
+}
+
+.text-field:focused, .password-field:focused {
+    -fx-border-color: #3498db;
+    -fx-background-color: white;
+}
+
+.dialog-pane {
+    -fx-background-color: white;
+}
+
+.dialog-pane > .content {
+    -fx-background-color: white;
+}
+
+.dialog-pane > .content .label {
+    -fx-text-fill: #2c3e50;
+}
+
+.dialog-pane .header-panel {
+    -fx-background-color: #3498db;
+}
+
+.dialog-pane .header-panel .label {
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+}
+
+.dialog-pane > .button-bar > .container {
+    -fx-background-color: #f5f5f5;
+}
+
+.dialog-pane > .button-bar .button {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+}
+
+.dialog-pane > .button-bar .button:hover {
+    -fx-background-color: #2980b9;
+}
+
+.alert .content.label {
+    -fx-text-fill: #2c3e50;
+}
+
+.context-menu {
+    -fx-background-color: white;
+    -fx-border-color: #bdc3c7;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+    -fx-padding: 4 0;
+}
+
+.context-menu .menu-item {
+    -fx-background-color: transparent;
+    -fx-padding: 8 20;
+}
+
+.context-menu .menu-item .label {
+    -fx-text-fill: #2c3e50;
+}
+
+.context-menu .menu-item:focused {
+    -fx-background-color: #e8f4fc;
+}
+
+.context-menu .menu-item:focused .label {
+    -fx-text-fill: #2c3e50;
+}
+
+.separator {
+    -fx-background-color: transparent;
+}
+
+.separator .line {
+    -fx-border-color: #bdc3c7;
+    -fx-border-width: 1 0 0 0;
+}
+
+.scroll-bar {
+    -fx-background-color: #f5f5f5;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: #bdc3c7;
+    -fx-background-radius: 3;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: #95a5a6;
+}
+
+.scroll-bar .increment-button, .scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .increment-arrow, .scroll-bar .decrement-arrow {
+    -fx-background-color: #95a5a6;
+}
+
+.text-input-dialog .content {
+    -fx-background-color: white;
+}
+
+.text-input-dialog .text-field {
+    -fx-text-fill: #2c3e50;
+}
+
+.combo-box {
+    -fx-background-color: white;
+    -fx-border-color: #bdc3c7;
+    -fx-border-radius: 3;
+}
+
+.combo-box .list-cell {
+    -fx-text-fill: #2c3e50;
+    -fx-background-color: white;
+}
+
+.tooltip {
+    -fx-background-color: #2c3e50;
+    -fx-text-fill: white;
+    -fx-background-radius: 3;
+    -fx-padding: 6 10;
+}
