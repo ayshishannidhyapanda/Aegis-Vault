@@ -12,7 +12,7 @@ ext {
     appVendor = 'Aegis Vault'
     appDescription = 'Secure encrypted container for your files'
     appCopyright = 'Copyright (c) 2026 Aegis Vault'
-    releaseVersion = '0.1.0'
+    releaseVersion = '1.0.0'
 
     distDir = "${rootDir}/dist"
     packagingDir = "${rootDir}/packaging"
