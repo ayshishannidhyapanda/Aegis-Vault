@@ -7,6 +7,17 @@ plugins {
 group = 'com.aegisvault'
 version = '0.1.0-SNAPSHOT'
 
+ext {
+    appName = 'AegisVault-J'
+    appVendor = 'Aegis Vault'
+    appDescription = 'Secure encrypted container for your files'
+    appCopyright = 'Copyright (c) 2026 Aegis Vault'
+    releaseVersion = '0.1.0'
+
+    distDir = "${rootDir}/dist"
+    packagingDir = "${rootDir}/packaging"
+}
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
@@ -41,4 +52,479 @@ test {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.compilerArgs << '-Xlint:all'
+}
+
+tasks.register('copyDependencies', Copy) {
+    from configurations.runtimeClasspath
+    into layout.buildDirectory.dir("libs/dependencies")
+}
+
+tasks.register('createRuntimeImage', Exec) {
+    dependsOn jar, tasks.named('copyDependencies')
+
+    def jmodsPath = System.getProperty('java.home') + '/jmods'
+    def outputDir = layout.buildDirectory.dir("runtime-image").get().asFile.absolutePath
+
+    doFirst {
+        delete outputDir
+    }
+
+    commandLine 'jlink',
+        '--module-path', jmodsPath,
+        '--add-modules', 'java.base,java.desktop,java.logging,java.naming,java.security.jgss,java.sql,java.xml,jdk.unsupported',
+        '--output', outputDir,
+        '--strip-debug',
+        '--compress', '2',
+        '--no-header-files',
+        '--no-man-pages'
+}
+
+tasks.register('packageWindows', Exec) {
+    dependsOn jar, tasks.named('copyDependencies')
+    group = 'distribution'
+    description = 'Creates Windows installer using jpackage'
+
+    onlyIf { System.getProperty('os.name').toLowerCase().contains('windows') }
+
+    def outputDir = "${distDir}/windows"
+    def inputDir = layout.buildDirectory.dir("libs").get().asFile.absolutePath
+    def mainJar = jar.archiveFileName.get()
+
+    doFirst {
+        mkdir outputDir
+    }
+
+    def iconPath = "${packagingDir}/icons/aegisvault-j.ico"
+    def iconFile = file(iconPath)
+
+    def cmdArgs = [
+        'jpackage',
+        '--type', 'exe',
+        '--name', appName,
+        '--app-version', releaseVersion,
+        '--vendor', appVendor,
+        '--description', appDescription,
+        '--copyright', appCopyright,
+        '--input', inputDir,
+        '--main-jar', mainJar,
+        '--main-class', 'com.aegisvault.AegisVaultApplication',
+        '--dest', outputDir,
+        '--java-options', '-Xmx512m',
+        '--win-dir-chooser',
+        '--win-menu',
+        '--win-menu-group', appName,
+        '--win-shortcut',
+        '--win-shortcut-prompt'
+    ]
+
+    if (iconFile.exists()) {
+        cmdArgs.addAll(['--icon', iconPath])
+    }
+
+    def modulePath = configurations.runtimeClasspath.files.collect { it.absolutePath }.join(File.pathSeparator)
+    if (modulePath) {
+        cmdArgs.addAll(['--module-path', modulePath])
+    }
+
+    commandLine cmdArgs
+}
+
+tasks.register('packageLinuxDeb', Exec) {
+    dependsOn jar, tasks.named('copyDependencies')
+    group = 'distribution'
+    description = 'Creates Linux .deb package using jpackage'
+
+    onlyIf { System.getProperty('os.name').toLowerCase().contains('linux') }
+
+    def outputDir = "${distDir}/linux"
+    def inputDir = layout.buildDirectory.dir("libs").get().asFile.absolutePath
+    def mainJar = jar.archiveFileName.get()
+
+    doFirst {
+        mkdir outputDir
+    }
+
+    def iconPath = "${packagingDir}/icons/aegisvault-j.png"
+    def iconFile = file(iconPath)
+
+    def cmdArgs = [
+        'jpackage',
+        '--type', 'deb',
+        '--name', 'aegisvault-j',
+        '--app-version', releaseVersion,
+        '--vendor', appVendor,
+        '--description', appDescription,
+        '--copyright', appCopyright,
+        '--input', inputDir,
+        '--main-jar', mainJar,
+        '--main-class', 'com.aegisvault.AegisVaultApplication',
+        '--dest', outputDir,
+        '--java-options', '-Xmx512m',
+        '--linux-menu-group', 'Utility;Security',
+        '--linux-shortcut',
+        '--linux-deb-maintainer', 'dev@aegisvault.example.com',
+        '--linux-app-category', 'utils'
+    ]
+
+    if (iconFile.exists()) {
+        cmdArgs.addAll(['--icon', iconPath])
+    }
+
+    def modulePath = configurations.runtimeClasspath.files.collect { it.absolutePath }.join(File.pathSeparator)
+    if (modulePath) {
+        cmdArgs.addAll(['--module-path', modulePath])
+    }
+
+    commandLine cmdArgs
+}
+
+tasks.register('packageLinuxRpm', Exec) {
+    dependsOn jar, tasks.named('copyDependencies')
+    group = 'distribution'
+    description = 'Creates Linux .rpm package using jpackage'
+
+    onlyIf { System.getProperty('os.name').toLowerCase().contains('linux') }
+
+    def outputDir = "${distDir}/linux"
+    def inputDir = layout.buildDirectory.dir("libs").get().asFile.absolutePath
+    def mainJar = jar.archiveFileName.get()
+
+    doFirst {
+        mkdir outputDir
+    }
+
+    def iconPath = "${packagingDir}/icons/aegisvault-j.png"
+    def iconFile = file(iconPath)
+
+    def cmdArgs = [
+        'jpackage',
+        '--type', 'rpm',
+        '--name', 'aegisvault-j',
+        '--app-version', releaseVersion,
+        '--vendor', appVendor,
+        '--description', appDescription,
+        '--copyright', appCopyright,
+        '--input', inputDir,
+        '--main-jar', mainJar,
+        '--main-class', 'com.aegisvault.AegisVaultApplication',
+        '--dest', outputDir,
+        '--java-options', '-Xmx512m',
+        '--linux-menu-group', 'Utility;Security',
+        '--linux-shortcut',
+        '--linux-app-category', 'Utility'
+    ]
+
+    if (iconFile.exists()) {
+        cmdArgs.addAll(['--icon', iconPath])
+    }
+
+    def modulePath = configurations.runtimeClasspath.files.collect { it.absolutePath }.join(File.pathSeparator)
+    if (modulePath) {
+        cmdArgs.addAll(['--module-path', modulePath])
+    }
+
+    commandLine cmdArgs
+}
+
+tasks.register('packageMacOs', Exec) {
+    dependsOn jar, tasks.named('copyDependencies')
+    group = 'distribution'
+    description = 'Creates macOS .app bundle and .dmg using jpackage'
+
+    onlyIf { System.getProperty('os.name').toLowerCase().contains('mac') }
+
+    def outputDir = "${distDir}/macos"
+    def inputDir = layout.buildDirectory.dir("libs").get().asFile.absolutePath
+    def mainJar = jar.archiveFileName.get()
+
+    doFirst {
+        mkdir outputDir
+    }
+
+    def iconPath = "${packagingDir}/icons/aegisvault-j.icns"
+    def iconFile = file(iconPath)
+
+    def cmdArgs = [
+        'jpackage',
+        '--type', 'dmg',
+        '--name', appName,
+        '--app-version', releaseVersion,
+        '--vendor', appVendor,
+        '--description', appDescription,
+        '--copyright', appCopyright,
+        '--input', inputDir,
+        '--main-jar', mainJar,
+        '--main-class', 'com.aegisvault.AegisVaultApplication',
+        '--dest', outputDir,
+        '--java-options', '-Xmx512m',
+        '--mac-package-name', appName
+    ]
+
+    if (iconFile.exists()) {
+        cmdArgs.addAll(['--icon', iconPath])
+    }
+
+    def modulePath = configurations.runtimeClasspath.files.collect { it.absolutePath }.join(File.pathSeparator)
+    if (modulePath) {
+        cmdArgs.addAll(['--module-path', modulePath])
+    }
+
+    commandLine cmdArgs
+}
+
+tasks.register('packageMacOsApp', Exec) {
+    dependsOn jar, tasks.named('copyDependencies')
+    group = 'distribution'
+    description = 'Creates macOS .app bundle only using jpackage'
+
+    onlyIf { System.getProperty('os.name').toLowerCase().contains('mac') }
+
+    def outputDir = "${distDir}/macos"
+    def inputDir = layout.buildDirectory.dir("libs").get().asFile.absolutePath
+    def mainJar = jar.archiveFileName.get()
+
+    doFirst {
+        mkdir outputDir
+    }
+
+    def iconPath = "${packagingDir}/icons/aegisvault-j.icns"
+    def iconFile = file(iconPath)
+
+    def cmdArgs = [
+        'jpackage',
+        '--type', 'app-image',
+        '--name', appName,
+        '--app-version', releaseVersion,
+        '--vendor', appVendor,
+        '--description', appDescription,
+        '--copyright', appCopyright,
+        '--input', inputDir,
+        '--main-jar', mainJar,
+        '--main-class', 'com.aegisvault.AegisVaultApplication',
+        '--dest', outputDir,
+        '--java-options', '-Xmx512m',
+        '--mac-package-name', appName
+    ]
+
+    if (iconFile.exists()) {
+        cmdArgs.addAll(['--icon', iconPath])
+    }
+
+    def modulePath = configurations.runtimeClasspath.files.collect { it.absolutePath }.join(File.pathSeparator)
+    if (modulePath) {
+        cmdArgs.addAll(['--module-path', modulePath])
+    }
+
+    commandLine cmdArgs
+}
+
+// ============================================
+// Portable App-Image Tasks (No Installer Required)
+// ============================================
+
+tasks.register('packageWindowsPortable', Exec) {
+    dependsOn jar, tasks.named('copyDependencies')
+    group = 'distribution'
+    description = 'Creates portable Windows app (folder with .exe, no installer needed)'
+
+    onlyIf { System.getProperty('os.name').toLowerCase().contains('windows') }
+
+    def outputDir = "${distDir}/windows"
+    def inputDir = layout.buildDirectory.dir("libs").get().asFile.absolutePath
+    def mainJar = jar.archiveFileName.get()
+
+    doFirst {
+        mkdir outputDir
+        // Remove existing app-image if present
+        delete "${outputDir}/${appName}"
+    }
+
+    def iconPath = "${packagingDir}/icons/aegisvault-j.ico"
+    def iconFile = file(iconPath)
+
+    def cmdArgs = [
+        'jpackage',
+        '--type', 'app-image',
+        '--name', appName,
+        '--app-version', releaseVersion,
+        '--vendor', appVendor,
+        '--description', appDescription,
+        '--input', inputDir,
+        '--main-jar', mainJar,
+        '--main-class', 'com.aegisvault.AegisVaultApplication',
+        '--dest', outputDir,
+        '--java-options', '-Xmx512m'
+    ]
+
+    if (iconFile.exists()) {
+        cmdArgs.addAll(['--icon', iconPath])
+    }
+
+    commandLine cmdArgs
+}
+
+tasks.register('packageLinuxPortable', Exec) {
+    dependsOn jar, tasks.named('copyDependencies')
+    group = 'distribution'
+    description = 'Creates portable Linux app (folder with executable, no installation needed)'
+
+    onlyIf { System.getProperty('os.name').toLowerCase().contains('linux') }
+
+    def outputDir = "${distDir}/linux"
+    def inputDir = layout.buildDirectory.dir("libs").get().asFile.absolutePath
+    def mainJar = jar.archiveFileName.get()
+
+    doFirst {
+        mkdir outputDir
+        // Remove existing app-image if present
+        delete "${outputDir}/aegisvault-j"
+    }
+
+    def iconPath = "${packagingDir}/icons/aegisvault-j.png"
+    def iconFile = file(iconPath)
+
+    def cmdArgs = [
+        'jpackage',
+        '--type', 'app-image',
+        '--name', 'aegisvault-j',
+        '--app-version', releaseVersion,
+        '--vendor', appVendor,
+        '--description', appDescription,
+        '--input', inputDir,
+        '--main-jar', mainJar,
+        '--main-class', 'com.aegisvault.AegisVaultApplication',
+        '--dest', outputDir,
+        '--java-options', '-Xmx512m'
+    ]
+
+    if (iconFile.exists()) {
+        cmdArgs.addAll(['--icon', iconPath])
+    }
+
+    commandLine cmdArgs
+}
+
+tasks.register('packageMacOsPortable', Exec) {
+    dependsOn jar, tasks.named('copyDependencies')
+    group = 'distribution'
+    description = 'Creates portable macOS .app bundle (no DMG, just the app)'
+
+    onlyIf { System.getProperty('os.name').toLowerCase().contains('mac') }
+
+    def outputDir = "${distDir}/macos"
+    def inputDir = layout.buildDirectory.dir("libs").get().asFile.absolutePath
+    def mainJar = jar.archiveFileName.get()
+
+    doFirst {
+        mkdir outputDir
+        // Remove existing app if present
+        delete "${outputDir}/${appName}.app"
+    }
+
+    def iconPath = "${packagingDir}/icons/aegisvault-j.icns"
+    def iconFile = file(iconPath)
+
+    def cmdArgs = [
+        'jpackage',
+        '--type', 'app-image',
+        '--name', appName,
+        '--app-version', releaseVersion,
+        '--vendor', appVendor,
+        '--description', appDescription,
+        '--input', inputDir,
+        '--main-jar', mainJar,
+        '--main-class', 'com.aegisvault.AegisVaultApplication',
+        '--dest', outputDir,
+        '--java-options', '-Xmx512m',
+        '--mac-package-name', appName
+    ]
+
+    if (iconFile.exists()) {
+        cmdArgs.addAll(['--icon', iconPath])
+    }
+
+    commandLine cmdArgs
+}
+
+tasks.register('packagePortable') {
+    group = 'distribution'
+    description = 'Creates portable app for the current platform (no installer needed)'
+
+    def os = System.getProperty('os.name').toLowerCase()
+    if (os.contains('windows')) {
+        dependsOn tasks.named('packageWindowsPortable')
+    } else if (os.contains('linux')) {
+        dependsOn tasks.named('packageLinuxPortable')
+    } else if (os.contains('mac')) {
+        dependsOn tasks.named('packageMacOsPortable')
+    }
+}
+
+// ============================================
+// Installer Tasks (require platform tools)
+// ============================================
+
+tasks.register('packageAll') {
+    group = 'distribution'
+    description = 'Creates native installers for all platforms (run on each target OS)'
+    dependsOn tasks.named('packageWindows'), tasks.named('packageLinuxDeb'), tasks.named('packageMacOs')
+}
+
+tasks.register('packageCurrentPlatform') {
+    group = 'distribution'
+    description = 'Creates native package for the current platform'
+
+    def os = System.getProperty('os.name').toLowerCase()
+    if (os.contains('windows')) {
+        dependsOn tasks.named('packageWindows')
+    } else if (os.contains('linux')) {
+        dependsOn tasks.named('packageLinuxDeb')
+    } else if (os.contains('mac')) {
+        dependsOn tasks.named('packageMacOs')
+    }
+}
+
+tasks.register('printPackagingInfo') {
+    group = 'distribution'
+    description = 'Prints packaging information and prerequisites'
+
+    doLast {
+        println """
+========================================
+AegisVault-J Packaging Information
+========================================
+
+Application: ${appName}
+Version: ${releaseVersion}
+Vendor: ${appVendor}
+
+Current OS: ${System.getProperty('os.name')}
+Java Home: ${System.getProperty('java.home')}
+Java Version: ${System.getProperty('java.version')}
+
+PORTABLE APPS (No installer tools required):
+  - packagePortable         : Creates portable app for current OS
+  - packageWindowsPortable  : Creates Windows folder with .exe
+  - packageLinuxPortable    : Creates Linux folder with executable  
+  - packageMacOsPortable    : Creates macOS .app bundle
+
+INSTALLERS (Require platform tools):
+  - packageWindows     : Creates Windows .exe installer (needs WiX)
+  - packageLinuxDeb    : Creates Linux .deb package (needs dpkg-dev)
+  - packageLinuxRpm    : Creates Linux .rpm package (needs rpm-build)
+  - packageMacOs       : Creates macOS .dmg installer
+  - packageMacOsApp    : Creates macOS .app bundle only
+
+Prerequisites for Installers:
+  - Windows: WiX Toolset 3.x (for .exe/.msi)
+  - Linux: dpkg-deb (for .deb), rpmbuild (for .rpm)
+  - macOS: Xcode command line tools
+
+Output directories:
+  - Windows: ${distDir}/windows/
+  - Linux:   ${distDir}/linux/
+  - macOS:   ${distDir}/macos/
+========================================
+"""
+    }
 }

@@ -1,0 +1,128 @@
+name: Build All Platforms
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build with Gradle
+        run: ./gradlew.bat build
+
+      - name: Create Windows Portable App
+        run: ./gradlew.bat packageWindowsPortable
+
+      - name: Upload Windows App
+        uses: actions/upload-artifact@v4
+        with:
+          name: AegisVault-J-Windows
+          path: dist/windows/AegisVault-J/
+          retention-days: 30
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build with Gradle
+        run: ./gradlew build
+
+      - name: Create Linux Portable App
+        run: ./gradlew packageLinuxPortable
+
+      - name: Upload Linux App
+        uses: actions/upload-artifact@v4
+        with:
+          name: AegisVault-J-Linux
+          path: dist/linux/aegisvault-j/
+          retention-days: 30
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build with Gradle
+        run: ./gradlew build
+
+      - name: Create macOS Portable App
+        run: ./gradlew packageMacOsPortable
+
+      - name: Upload macOS App
+        uses: actions/upload-artifact@v4
+        with:
+          name: AegisVault-J-macOS
+          path: dist/macos/AegisVault-J.app/
+          retention-days: 30
+
+  # Create a release with all artifacts when a tag is pushed
+  release:
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: AegisVault-J-Windows
+          path: AegisVault-J-Windows
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: AegisVault-J-Linux
+          path: AegisVault-J-Linux
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: AegisVault-J-macOS
+          path: AegisVault-J-macOS
+
+      - name: Create ZIP archives
+        run: |
+          zip -r AegisVault-J-Windows.zip AegisVault-J-Windows/
+          zip -r AegisVault-J-Linux.zip AegisVault-J-Linux/
+          zip -r AegisVault-J-macOS.zip AegisVault-J-macOS/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            AegisVault-J-Windows.zip
+            AegisVault-J-Linux.zip
+            AegisVault-J-macOS.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
