@@ -47,14 +47,19 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Install dependencies for JavaFX
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-0 libglu1-mesa xvfb
+
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
       - name: Build with Gradle
-        run: ./gradlew build
+        run: xvfb-run ./gradlew build
 
       - name: Create Linux Portable App
-        run: ./gradlew packageLinuxPortable
+        run: xvfb-run ./gradlew packageLinuxPortable
 
       - name: Upload Linux App
         uses: actions/upload-artifact@v4
