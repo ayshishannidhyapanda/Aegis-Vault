@@ -97,9 +97,64 @@ This is a **Java application**, not a disk encryption tool. For full-disk encryp
 
 ---
 
+## Installation
+
+AegisVault-J is distributed as a native application for Windows, Linux, and macOS.  
+**No Java installation is required** — the application includes its own bundled runtime.
+
+### Windows
+
+1. Download `AegisVault-J-0.1.0.exe` from the releases page
+2. Run the installer
+3. Follow the installation wizard
+4. Launch from Start Menu → AegisVault-J
+
+**What gets installed:**
+- Application in `C:\Program Files\AegisVault-J\`
+- Start Menu shortcut
+- Optional desktop shortcut
+
+### Linux
+
+**Debian/Ubuntu (.deb):**
+```bash
+# Download and install
+sudo apt install ./aegisvault-j_0.1.0-1_amd64.deb
+
+# Or using dpkg
+sudo dpkg -i aegisvault-j_0.1.0-1_amd64.deb
+```
+
+**RHEL/Fedora (.rpm):**
+```bash
+sudo dnf install ./aegisvault-j-0.1.0-1.x86_64.rpm
+```
+
+**After installation:**
+- Launch from Applications menu → AegisVault-J
+- Or run `aegisvault-j` from terminal
+
+### macOS
+
+1. Download `AegisVault-J-0.1.0.dmg` from the releases page
+2. Open the DMG file
+3. Drag AegisVault-J to Applications folder
+4. Launch from Applications
+
+**⚠️ First Launch (Gatekeeper):**
+
+The application is not signed with an Apple Developer ID. On first launch:
+1. Right-click on AegisVault-J.app
+2. Select "Open" from the context menu
+3. Click "Open" in the security dialog
+
+Or: System Settings → Privacy & Security → Click "Open Anyway"
+
+---
+
 ## Quick Start
 
-### Running the Application
+### Running from Source (Development)
 
 ```bash
 ./gradlew run
@@ -124,9 +179,48 @@ This is a **Java application**, not a disk encryption tool. For full-disk encryp
 | Export Files/Folders | Extract files from the vault (decrypted) |
 | Browse Contents | View logical file/folder list |
 | Password Strength | Visual indicator when setting password |
-| Auto-Lock | Automatic lock after 15 minutes of inactivity |
+| Auto-Lock | Automatic lock after configurable inactivity timeout |
 | Change Password | Update vault password |
 | Backup Vault | Create copies of vault file |
+| Recent Vaults | Quick access to recently opened vaults |
+| Search & Filter | Find files quickly within the vault |
+| Multi-Select | Select multiple files for bulk operations |
+| Progress Indicators | Visual feedback for long operations |
+
+---
+
+## User Experience
+
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+N | Create new vault |
+| Ctrl+O | Open vault |
+| Ctrl+L | Close/Lock vault |
+| Ctrl+Q | Exit application |
+| Ctrl+I | Import file |
+| Ctrl+Shift+I | Import folder |
+| Ctrl+E | Export selected |
+| Ctrl+D | New folder |
+| Ctrl+B | Backup vault |
+| Ctrl+F | Search files |
+| F5 | Refresh file list |
+| F1 | About |
+| Delete | Delete selected |
+| Backspace | Go to parent folder |
+| Enter | Open folder |
+
+### Progress Feedback
+
+Long operations like importing folders or exporting multiple files show progress dialogs with:
+- Visual progress bar
+- Current file being processed
+- Cancel button (where safe)
+
+### Auto-Lock
+
+Configure automatic vault locking via Settings → Auto-Lock Timeout. Options: 1, 5, 10, 15, 30, or 60 minutes. Your setting is remembered between sessions.
 
 ---
 
@@ -155,16 +249,62 @@ This is a **Java application**, not a disk encryption tool. For full-disk encryp
 
 ---
 
-## Building
+## Building from Source
+
+### Development Build
 
 ```bash
 ./gradlew build
 ```
 
-## Requirements
+### Creating Native Installers
 
-- Java 17 or higher
-- No additional software required
+AegisVault-J uses **jpackage** to create native installers with bundled JVM runtime.
+
+**Windows:**
+```powershell
+# Requires WiX Toolset 3.x
+.\gradlew.bat packageWindows
+# Output: dist/windows/AegisVault-J-0.1.0.exe
+```
+
+**Linux:**
+```bash
+# Debian/Ubuntu (requires dpkg-dev)
+./gradlew packageLinuxDeb
+# Output: dist/linux/aegisvault-j_0.1.0-1_amd64.deb
+
+# RHEL/Fedora (requires rpm-build)
+./gradlew packageLinuxRpm
+# Output: dist/linux/aegisvault-j-0.1.0-1.x86_64.rpm
+```
+
+**macOS:**
+```bash
+# Requires Xcode command line tools
+./gradlew packageMacOs
+# Output: dist/macos/AegisVault-J-0.1.0.dmg
+```
+
+For detailed packaging instructions, see [Packaging Guide](docs/packaging.md).
+
+## Build Requirements
+
+### For Development
+
+| Requirement | Version |
+|-------------|---------|
+| JDK | 17+ |
+| Gradle | 8+ (wrapper included) |
+
+### For Native Packaging
+
+| Platform | Additional Requirement |
+|----------|------------------------|
+| Windows | WiX Toolset 3.x |
+| Linux (DEB) | dpkg-dev, fakeroot |
+| Linux (RPM) | rpm-build |
+| macOS | Xcode command line tools |
 
 ---
 
@@ -172,6 +312,61 @@ This is a **Java application**, not a disk encryption tool. For full-disk encryp
 
 - [Project Context](docs/context.md) — Authoritative design document
 - [Security Policy](SECURITY.md) — Threat model and security details
+- [Security Audit](docs/SECURITY_AUDIT.md) — Phase A audit results
+- [Packaging Guide](docs/packaging.md) — Native installer build instructions
+- [Release Information](docs/RELEASE.md) — Version and platform details
+- [Experimental Crypto](docs/experimental-crypto.md) — Advanced cryptographic options
+
+---
+
+## ⚠️ Advanced Users: Experimental Features
+
+AegisVault-J includes an **experimental cryptography framework** for security researchers and advanced users. These features are:
+
+| Feature | Default State | Risk |
+|---------|---------------|------|
+| Alternative Ciphers (Serpent, Twofish, Camellia) | DISABLED | High |
+| Cipher Cascades | DISABLED | Very High |
+| Alternative KDFs | DISABLED | High |
+| Mouse Entropy Collection | DISABLED | Low |
+
+### ⚠️ Important Warnings
+
+1. **All experimental features are DISABLED by default**
+2. **The security audit does NOT apply when experimental features are enabled**
+3. **Do NOT use experimental modes for sensitive or production data**
+4. **Experimental features may introduce vulnerabilities**
+
+### Enabling Experimental Features
+
+Only for research/testing purposes:
+
+```bash
+java -Daegisvault.experimental.ciphers.enabled=true \
+     -Daegisvault.experimental.cipher.serpent.enabled=true \
+     -jar aegis-vault.jar
+```
+
+See [docs/experimental-crypto.md](docs/experimental-crypto.md) for complete documentation.
+
+### Recommended Configuration
+
+For **all production use**, use the defaults:
+- Cipher: **AES-256-GCM** (audited)
+- KDF: **Argon2id** (audited)
+- No experimental features
+
+---
+
+## Release Information
+
+| Property | Value |
+|----------|-------|
+| Version | 0.1.0 |
+| Build Date | January 21, 2026 |
+| Platforms | Windows, Linux, macOS |
+| Architecture | x64 |
+| Bundled Runtime | Java 17+ |
 
 ---
 

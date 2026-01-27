@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="120" fill="#1a365d"/>
+
+  <!-- Vault body -->
+  <rect x="58" y="90" width="140" height="110" rx="10" fill="#2c5282"/>
+  <rect x="68" y="100" width="120" height="90" rx="6" fill="#1a365d"/>
+
+  <!-- Lock shackle -->
+  <path d="M88 90 L88 65 Q88 40 128 40 Q168 40 168 65 L168 90"
+        fill="none" stroke="#63b3ed" stroke-width="16" stroke-linecap="round"/>
+
+  <!-- Keyhole -->
+  <circle cx="128" cy="140" r="18" fill="#63b3ed"/>
+  <rect x="120" y="145" width="16" height="30" rx="3" fill="#63b3ed"/>
+
+  <!-- Highlight -->
+  <ellipse cx="100" cy="115" rx="15" ry="8" fill="#4299e1" opacity="0.4"/>
+</svg>

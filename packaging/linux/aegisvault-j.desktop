@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=AegisVault-J
+Comment=Secure encrypted container for your files
+Exec=aegisvault-j
+Icon=aegisvault-j
+Categories=Utility;Security;
+Terminal=false
+StartupNotify=true
+Keywords=vault;encryption;security;password;safe;

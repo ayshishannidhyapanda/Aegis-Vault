@@ -20,7 +20,7 @@ ext {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
@@ -144,7 +144,7 @@ tasks.register('packageLinuxDeb', Exec) {
         mkdir outputDir
     }
 
-    def iconPath = "${packagingDir}/icons/aegisvault-j.png"
+    def iconPath = "${packagingDir}/icons/logo.png"
     def iconFile = file(iconPath)
 
     def cmdArgs = [
@@ -193,7 +193,7 @@ tasks.register('packageLinuxRpm', Exec) {
         mkdir outputDir
     }
 
-    def iconPath = "${packagingDir}/icons/aegisvault-j.png"
+    def iconPath = "${packagingDir}/icons/logo.png"
     def iconFile = file(iconPath)
 
     def cmdArgs = [

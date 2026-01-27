@@ -103,4 +103,61 @@ This project has not been independently audited. Use at your own risk for sensit
 
 ---
 
+## ⚠️ Experimental Cryptography Features
+
+AegisVault-J includes **experimental** cryptographic features for research and advanced users. These features are:
+
+- **DISABLED by default**
+- **NOT covered by the security audit**
+- **NOT recommended for production use**
+- **Subject to change or removal**
+
+### Experimental Features (Design Phase)
+
+| Feature | Status | Risk Level |
+|---------|--------|------------|
+| Pluggable Cipher Framework | Design | Medium |
+| Serpent-256-GCM | Design | High |
+| Twofish-256-GCM | Design | High |
+| Camellia-256-GCM | Design | High |
+| Kuznyechik-256-GCM | Design | Very High |
+| Cipher Cascades | Design | Very High |
+| Alternative KDFs (scrypt, PBKDF2) | Design | High |
+| Mouse Entropy Collection | Design | Low |
+| Cryptographic Self-Tests | Design | Low |
+
+### SECURITY_AUDIT.md Validity
+
+**CRITICAL:** When ANY experimental feature is enabled:
+
+1. The findings in `SECURITY_AUDIT.md` **DO NOT APPLY**
+2. No security guarantees are provided
+3. The vault should be considered **EXPERIMENTAL ONLY**
+4. Data protection level is **UNKNOWN**
+
+### Enabling Experimental Features
+
+Experimental features require explicit opt-in via system properties:
+
+```
+-Daegisvault.experimental.ciphers.enabled=true
+-Daegisvault.experimental.cipher.serpent.enabled=true
+-Daegisvault.experimental.cascades.enabled=true
+```
+
+### Risk Acknowledgment
+
+By enabling experimental features, you acknowledge:
+
+1. You understand these features are NOT security audited
+2. You accept full responsibility for any data loss
+3. You will NOT use experimental vaults for sensitive data
+4. The developers provide NO WARRANTY for experimental features
+
+### Documentation
+
+See [docs/experimental-crypto.md](docs/experimental-crypto.md) for complete documentation of experimental features.
+
+---
+
 *Security is a process, not a feature. This document will be updated as the threat model evolves.*

@@ -462,6 +462,38 @@ These decisions are **immutable** unless a critical security flaw is discovered:
 | 2026-01-20 | Completed Phase A security audit — PASSED | Security |
 | 2026-01-20 | Created SECURITY_AUDIT.md with detailed findings | Security |
 | 2026-01-20 | Updated SECURITY.md with PasswordField limitation disclosure | Security |
+| 2026-01-21 | Phase B: Added ProgressDialog component for async operations | UX |
+| 2026-01-21 | Phase B: Import files/folders now shows progress with cancel option | UX |
+| 2026-01-21 | Phase B: Export multiple items shows progress with cancel option | UX |
+| 2026-01-21 | Phase B: Backup vault now shows progress indicator | UX |
+| 2026-01-21 | Phase B: Enhanced export warning dialog with clearer emphasis | UX |
+| 2026-01-21 | Phase B: Added export completion reminder about deleting files | UX |
+| 2026-01-21 | Phase B: Improved status messages with success indicators | UX |
+| 2026-01-21 | Phase B: Added progress bar and disabled button CSS styles | UX |
+| 2026-01-21 | Phase B: Updated README.md with UX features and shortcuts | UX |
+| 2026-01-21 | Phase C: Added jpackage tasks for Windows .exe installer | Packaging |
+| 2026-01-21 | Phase C: Added jpackage tasks for Linux .deb and .rpm packages | Packaging |
+| 2026-01-21 | Phase C: Added jpackage tasks for macOS .dmg and .app bundle | Packaging |
+| 2026-01-21 | Phase C: Created packaging/icons directory with SVG source icon | Packaging |
+| 2026-01-21 | Phase C: Created packaging/linux/aegisvault-j.desktop entry | Packaging |
+| 2026-01-21 | Phase C: Created docs/packaging.md with detailed build instructions | Packaging |
+| 2026-01-21 | Phase C: Created docs/RELEASE.md with version and platform info | Packaging |
+| 2026-01-21 | Phase C: Updated README.md with Installation section per OS | Packaging |
+| 2026-01-21 | Phase C: Created dist/ directory structure for build artifacts | Packaging |
+| 2026-01-21 | Phase C: Updated build.gradle with modern Gradle task syntax | Packaging |
+| 2026-01-21 | Phase E: Created docs/experimental-crypto.md design document | Experimental |
+| 2026-01-21 | Phase E: Created CipherProvider interface for pluggable ciphers | Experimental |
+| 2026-01-21 | Phase E: Created AesGcmCipherProvider wrapping audited implementation | Experimental |
+| 2026-01-21 | Phase E: Created ExperimentalCipherProvider abstract base class | Experimental |
+| 2026-01-21 | Phase E: Created CipherRegistry with experimental feature flags | Experimental |
+| 2026-01-21 | Phase E: Created KeyDerivationFunction interface | Experimental |
+| 2026-01-21 | Phase E: Created Argon2idKdfProvider wrapping audited KDF | Experimental |
+| 2026-01-21 | Phase E: Created CascadeCipherProvider skeleton (design only) | Experimental |
+| 2026-01-21 | Phase E: Created MouseEntropyCollector skeleton | Experimental |
+| 2026-01-21 | Phase E: Created CryptoSelfTest for startup validation | Experimental |
+| 2026-01-21 | Phase E: Created ExperimentalConfig for feature flag management | Experimental |
+| 2026-01-21 | Phase E: Updated SECURITY.md with experimental features warning | Experimental |
+| 2026-01-21 | Phase E: Updated README.md with advanced users warning section | Experimental |
 
 ---
 

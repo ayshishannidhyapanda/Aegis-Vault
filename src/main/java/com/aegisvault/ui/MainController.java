@@ -15,6 +15,9 @@
  */
 package com.aegisvault.ui;
 
+import com.aegisvault.crypto.experimental.CryptoOptionsDialog;
+import com.aegisvault.crypto.experimental.CryptoSettings;
+import com.aegisvault.crypto.experimental.EntropyCollectionDialog;
 import com.aegisvault.exception.AuthenticationException;
 import com.aegisvault.service.VaultService;
 import com.aegisvault.vfs.VfsEntry;
@@ -38,11 +41,14 @@ import javafx.stage.Stage;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.prefs.Preferences;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class MainController {
 
@@ -185,9 +191,13 @@ public class MainController {
         settingsMenu = new Menu("_Settings");
         settingsMenu.setMnemonicParsing(true);
 
+        MenuItem encryptionOptions = new MenuItem("Encryption Options...");
+        encryptionOptions.setOnAction(e -> showEncryptionOptions());
+
         MenuItem autoLockSettings = new MenuItem("Auto-Lock Timeout...");
         autoLockSettings.setOnAction(e -> showAutoLockSettings());
-        settingsMenu.getItems().add(autoLockSettings);
+
+        settingsMenu.getItems().addAll(encryptionOptions, new SeparatorMenuItem(), autoLockSettings);
 
         Menu helpMenu = new Menu("_Help");
         helpMenu.setMnemonicParsing(true);
@@ -314,17 +324,15 @@ public class MainController {
     private ContextMenu createContextMenu() {
         ContextMenu menu = new ContextMenu();
 
-        MenuItem open = new MenuItem("Open");
         MenuItem export = new MenuItem("Export...");
         MenuItem rename = new MenuItem("Rename...");
         MenuItem delete = new MenuItem("Delete");
 
-        open.setOnAction(e -> handleItemDoubleClick());
         export.setOnAction(e -> handleExportSelected());
         rename.setOnAction(e -> handleRenameSelected());
         delete.setOnAction(e -> handleDeleteSelected());
 
-        menu.getItems().addAll(open, export, new SeparatorMenuItem(), rename, delete);
+        menu.getItems().addAll(export, new SeparatorMenuItem(), rename, delete);
         return menu;
     }
 
@@ -366,6 +374,21 @@ public class MainController {
     }
 
     private void handleNewVault() {
+        Optional<CryptoSettings> cryptoResult = CryptoOptionsDialog.show(stage);
+        if (cryptoResult.isEmpty()) {
+            return;
+        }
+
+        CryptoSettings settings = cryptoResult.get();
+
+        if (settings.isUseMouseEntropy()) {
+            byte[] entropy = EntropyCollectionDialog.collectEntropy(stage);
+            if (entropy != null) {
+                settings.setCollectedEntropy(entropy);
+                EntropyCollectionDialog.contributeToSecureRandom(entropy, new SecureRandom());
+            }
+        }
+
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Create New Vault");
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("AegisVault Files", "*.avj"));
@@ -385,7 +408,10 @@ public class MainController {
                     updateMenuState(true);
                     addToRecentVaults(file.getAbsolutePath());
                     stage.setTitle("AegisVault-J — " + file.getName());
-                    updateStatus("Vault created: " + file.getName());
+                    String statusMsg = "Vault created: " + file.getName() +
+                                       " | Cipher: " + settings.getSelectedCipher() +
+                                       " | Hash: " + settings.getSelectedHash();
+                    updateStatus(statusMsg);
                 } catch (Exception ex) {
                     showError("Failed to create vault", ex.getMessage());
                 }
@@ -489,19 +515,84 @@ public class MainController {
         chooser.setTitle("Import File");
         List<File> files = chooser.showOpenMultipleDialog(stage);
 
-        if (files != null) {
-            for (File file : files) {
+        if (files != null && !files.isEmpty()) {
+            if (files.size() == 1 && files.get(0).length() < 1024 * 1024) {
                 try {
+                    File file = files.get(0);
                     byte[] content = Files.readAllBytes(file.toPath());
                     String targetPath = currentPath.equals("/") ? "/" + file.getName() : currentPath + "/" + file.getName();
                     vaultService.createFile(targetPath, content);
+                    refreshFileList();
+                    updateStatus("File imported: " + file.getName());
                 } catch (Exception ex) {
-                    showError("Import Failed", "Failed to import " + file.getName() + ": " + ex.getMessage());
+                    showError("Import Failed", ex.getMessage());
                 }
+            } else {
+                importFilesWithProgress(files);
             }
-            refreshFileList();
-            updateStatus("Files imported successfully");
         }
+    }
+
+    private void importFilesWithProgress(List<File> files) {
+        ProgressDialog progressDialog = new ProgressDialog("Importing Files", "Preparing to import...");
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger failCount = new AtomicInteger(0);
+
+        Task<Void> importTask = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                int total = files.size();
+                for (int i = 0; i < files.size(); i++) {
+                    if (progressDialog.isCancelled()) {
+                        cancelled.set(true);
+                        break;
+                    }
+
+                    File file = files.get(i);
+                    updateTitle("Importing Files");
+                    updateMessage("Importing: " + file.getName() + " (" + formatFileSize(file.length()) + ")");
+                    updateProgress(i, total);
+
+                    try {
+                        byte[] content = Files.readAllBytes(file.toPath());
+                        String targetPath = currentPath.equals("/") ? "/" + file.getName() : currentPath + "/" + file.getName();
+                        vaultService.createFile(targetPath, content);
+                        successCount.incrementAndGet();
+                    } catch (Exception ex) {
+                        failCount.incrementAndGet();
+                    }
+                }
+                updateProgress(total, total);
+                return null;
+            }
+        };
+
+        progressDialog.bindTask(importTask);
+
+        Thread importThread = new Thread(importTask);
+        importThread.setDaemon(true);
+        importThread.start();
+
+        progressDialog.showAndWait();
+
+        Platform.runLater(() -> {
+            refreshFileList();
+            if (cancelled.get()) {
+                updateStatus(String.format("Import cancelled: %d imported, %d failed", successCount.get(), failCount.get()));
+            } else if (failCount.get() == 0) {
+                updateStatus("✓ " + successCount.get() + " file(s) imported successfully");
+            } else {
+                updateStatus(String.format("%d imported, %d failed", successCount.get(), failCount.get()));
+            }
+        });
+    }
+
+    private String formatFileSize(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
+        return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
     }
 
     private void handleImportFolder() {
@@ -515,35 +606,92 @@ public class MainController {
         File folder = chooser.showDialog(stage);
 
         if (folder != null) {
-            try {
-                importFolderRecursive(folder.toPath(), currentPath);
-                refreshFileList();
-                updateStatus("Folder imported successfully");
-            } catch (Exception ex) {
-                showError("Import Failed", ex.getMessage());
-            }
+            importFolderWithProgress(folder);
         }
     }
 
-    private void importFolderRecursive(Path source, String targetBase) throws Exception {
+    private void importFolderWithProgress(File folder) {
+        ProgressDialog progressDialog = new ProgressDialog("Importing Folder", "Scanning folder...");
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger failCount = new AtomicInteger(0);
+
+        Task<Void> importTask = new Task<>() {
+            @Override
+            protected Void call() {
+                List<Path> allFiles;
+                try (Stream<Path> walk = Files.walk(folder.toPath())) {
+                    allFiles = walk.filter(Files::isRegularFile).toList();
+                } catch (Exception ex) {
+                    allFiles = List.of();
+                }
+
+                int total = allFiles.size();
+                updateTitle("Importing Folder");
+                updateMessage("Importing: " + folder.getName());
+
+                importFolderRecursiveWithProgress(folder.toPath(), currentPath, successCount, failCount, progressDialog, new AtomicInteger(0), total);
+                return null;
+            }
+        };
+
+        progressDialog.bindTask(importTask);
+
+        Thread importThread = new Thread(importTask);
+        importThread.setDaemon(true);
+        importThread.start();
+
+        progressDialog.showAndWait();
+
+        Platform.runLater(() -> {
+            refreshFileList();
+            if (progressDialog.isCancelled()) {
+                updateStatus(String.format("Import cancelled: %d files imported, %d failed", successCount.get(), failCount.get()));
+            } else if (failCount.get() == 0) {
+                updateStatus("✓ Folder imported: " + successCount.get() + " file(s)");
+            } else {
+                updateStatus(String.format("Folder imported: %d files, %d failed", successCount.get(), failCount.get()));
+            }
+        });
+    }
+
+    private void importFolderRecursiveWithProgress(Path source, String targetBase,
+            AtomicInteger successCount, AtomicInteger failCount, ProgressDialog progressDialog,
+            AtomicInteger processedCount, int totalFiles) {
+
+        if (progressDialog.isCancelled()) return;
+
         String folderName = source.getFileName().toString();
         String targetPath = targetBase.equals("/") ? "/" + folderName : targetBase + "/" + folderName;
 
-        vaultService.createDirectory(targetPath);
+        try {
+            vaultService.createDirectory(targetPath);
+        } catch (Exception ex) {
+            return;
+        }
 
         File[] children = source.toFile().listFiles();
         if (children != null) {
             for (File child : children) {
+                if (progressDialog.isCancelled()) break;
+
                 if (child.isDirectory()) {
-                    importFolderRecursive(child.toPath(), targetPath);
+                    importFolderRecursiveWithProgress(child.toPath(), targetPath, successCount, failCount, progressDialog, processedCount, totalFiles);
                 } else {
-                    byte[] content = Files.readAllBytes(child.toPath());
-                    String filePath = targetPath + "/" + child.getName();
-                    vaultService.createFile(filePath, content);
+                    try {
+                        byte[] content = Files.readAllBytes(child.toPath());
+                        String filePath = targetPath + "/" + child.getName();
+                        vaultService.createFile(filePath, content);
+                        successCount.incrementAndGet();
+                    } catch (Exception ex) {
+                        failCount.incrementAndGet();
+                    }
+                    int processed = processedCount.incrementAndGet();
+                    progressDialog.updateProgress((double) processed / totalFiles, "Importing: " + child.getName());
                 }
             }
         }
     }
+
 
     private void handleExportSelected() {
         if (!vaultService.isVaultOpen()) return;
@@ -555,19 +703,23 @@ public class MainController {
         }
 
         Alert warning = new Alert(Alert.AlertType.WARNING);
-        warning.setTitle("Security Warning");
-        warning.setHeaderText("Exported files are NOT protected");
+        warning.setTitle("⚠️ Security Warning");
+        warning.setHeaderText("Exported files are NOT protected!");
+        warning.getDialogPane().setStyle("-fx-background-color: #fff3cd;");
         int count = selectedItems.size();
         warning.setContentText(
                 "You are about to export " + count + " item(s).\n\n" +
-                "When you export files from the vault, they become regular unencrypted files.\n\n" +
+                "⚠️ IMPORTANT: When you export files from the vault, they become regular unencrypted files.\n\n" +
                 "• Anyone with access to your computer can read them\n" +
                 "• They are YOUR responsibility to protect\n" +
-                "• Delete exported files when you're done using them\n\n" +
+                "• DELETE exported files when you're done using them\n\n" +
                 "Do you want to continue?");
-        warning.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
 
-        if (warning.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) {
+        ButtonType yesButton = new ButtonType("Yes, Export", ButtonBar.ButtonData.YES);
+        ButtonType noButton = new ButtonType("Cancel", ButtonBar.ButtonData.NO);
+        warning.getButtonTypes().setAll(yesButton, noButton);
+
+        if (warning.showAndWait().orElse(noButton) != yesButton) {
             return;
         }
 
@@ -583,7 +735,8 @@ public class MainController {
                     String sourcePath = currentPath.equals("/") ? "/" + selected.getName() : currentPath + "/" + selected.getName();
                     byte[] content = vaultService.readFile(sourcePath);
                     Files.write(file.toPath(), content);
-                    updateStatus("File exported successfully");
+                    updateStatus("✓ File exported: " + file.getName());
+                    showExportReminder();
                 } catch (Exception ex) {
                     showError("Export Failed", ex.getMessage());
                 }
@@ -594,29 +747,76 @@ public class MainController {
             File targetDir = chooser.showDialog(stage);
 
             if (targetDir != null) {
-                int exported = 0;
-                int failed = 0;
-                for (VfsEntry entry : selectedItems) {
-                    try {
-                        String sourcePath = currentPath.equals("/") ? "/" + entry.getName() : currentPath + "/" + entry.getName();
-                        if (entry.isDirectory()) {
-                            exportFolderRecursive(sourcePath, targetDir.toPath());
-                        } else {
-                            byte[] content = vaultService.readFile(sourcePath);
-                            Files.write(targetDir.toPath().resolve(entry.getName()), content);
-                        }
-                        exported++;
-                    } catch (Exception ex) {
-                        failed++;
-                    }
-                }
-                if (failed == 0) {
-                    updateStatus(exported + " item(s) exported successfully");
-                } else {
-                    updateStatus(exported + " exported, " + failed + " failed");
-                }
+                exportItemsWithProgress(selectedItems, targetDir.toPath());
             }
         }
+    }
+
+    private void exportItemsWithProgress(List<VfsEntry> items, Path targetDir) {
+        ProgressDialog progressDialog = new ProgressDialog("Exporting Files", "Preparing export...");
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger failCount = new AtomicInteger(0);
+
+        Task<Void> exportTask = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                int total = items.size();
+                for (int i = 0; i < items.size(); i++) {
+                    if (progressDialog.isCancelled()) break;
+
+                    VfsEntry entry = items.get(i);
+                    String sourcePath = currentPath.equals("/") ? "/" + entry.getName() : currentPath + "/" + entry.getName();
+
+                    updateTitle("Exporting Files");
+                    updateMessage("Exporting: " + entry.getName());
+                    updateProgress(i, total);
+
+                    try {
+                        if (entry.isDirectory()) {
+                            exportFolderRecursive(sourcePath, targetDir);
+                        } else {
+                            byte[] content = vaultService.readFile(sourcePath);
+                            Files.write(targetDir.resolve(entry.getName()), content);
+                        }
+                        successCount.incrementAndGet();
+                    } catch (Exception ex) {
+                        failCount.incrementAndGet();
+                    }
+                }
+                updateProgress(total, total);
+                return null;
+            }
+        };
+
+        progressDialog.bindTask(exportTask);
+
+        Thread exportThread = new Thread(exportTask);
+        exportThread.setDaemon(true);
+        exportThread.start();
+
+        progressDialog.showAndWait();
+
+        Platform.runLater(() -> {
+            if (progressDialog.isCancelled()) {
+                updateStatus(String.format("Export cancelled: %d exported, %d failed", successCount.get(), failCount.get()));
+            } else if (failCount.get() == 0) {
+                updateStatus("✓ " + successCount.get() + " item(s) exported successfully");
+                showExportReminder();
+            } else {
+                updateStatus(String.format("%d exported, %d failed", successCount.get(), failCount.get()));
+            }
+        });
+    }
+
+    private void showExportReminder() {
+        Alert reminder = new Alert(Alert.AlertType.INFORMATION);
+        reminder.setTitle("Export Complete");
+        reminder.setHeaderText("Remember to delete exported files");
+        reminder.setContentText(
+                "Your files have been exported successfully.\n\n" +
+                "🔓 Remember: Exported files are NOT encrypted.\n" +
+                "Delete them when you're done using them to maintain security.");
+        reminder.showAndWait();
     }
 
     private void exportFolderRecursive(String sourcePath, Path targetDir) throws Exception {
@@ -755,13 +955,40 @@ public class MainController {
         File backupFile = chooser.showSaveDialog(stage);
 
         if (backupFile != null) {
-            try {
-                Files.copy(currentVault, backupFile.toPath());
-                updateStatus("Backup created: " + backupFile.getName());
-                showInfo("Backup Complete", "Vault backed up to: " + backupFile.getAbsolutePath());
-            } catch (Exception ex) {
-                showError("Backup Failed", ex.getMessage());
-            }
+            ProgressDialog progressDialog = new ProgressDialog("Creating Backup", "Backing up vault...");
+            progressDialog.hideCancelButton();
+
+            Task<Void> backupTask = new Task<>() {
+                @Override
+                protected Void call() throws Exception {
+                    updateTitle("Creating Backup");
+                    updateMessage("Copying vault file...");
+                    Files.copy(currentVault, backupFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    return null;
+                }
+            };
+
+            progressDialog.bindTask(backupTask);
+
+            backupTask.setOnSucceeded(e -> {
+                Platform.runLater(() -> {
+                    updateStatus("✓ Backup created: " + backupFile.getName());
+                    showInfo("Backup Complete", "Vault backed up to:\n" + backupFile.getAbsolutePath());
+                });
+            });
+
+            backupTask.setOnFailed(e -> {
+                Platform.runLater(() -> {
+                    Throwable ex = backupTask.getException();
+                    showError("Backup Failed", ex != null ? ex.getMessage() : "Unknown error");
+                });
+            });
+
+            Thread backupThread = new Thread(backupTask);
+            backupThread.setDaemon(true);
+            backupThread.start();
+
+            progressDialog.show();
         }
     }
 
@@ -882,6 +1109,25 @@ public class MainController {
         updateRecentVaultsMenu();
     }
 
+    private void showEncryptionOptions() {
+        Optional<CryptoSettings> result = CryptoOptionsDialog.show(stage);
+        result.ifPresent(settings -> {
+            StringBuilder msg = new StringBuilder();
+            msg.append("Encryption settings updated:\n\n");
+            msg.append("Cipher: ").append(settings.getSelectedCipher()).append("\n");
+            msg.append("Hash: ").append(settings.getSelectedHash()).append("\n");
+            msg.append("Mouse Entropy: ").append(settings.isUseMouseEntropy() ? "Enabled" : "Disabled");
+
+            if (settings.isExperimentalCipher()) {
+                msg.append("\n\n⚠️ WARNING: Experimental cipher selected.\n");
+                msg.append("Security audit findings do NOT apply.");
+            }
+
+            showInfo("Encryption Options", msg.toString());
+            updateStatus("Encryption: " + settings.getSelectedCipher() + " | Hash: " + settings.getSelectedHash());
+        });
+    }
+
     private void showAutoLockSettings() {
         int currentMinutes = (int) (vaultService.getAutoLockTimeout() / 60000);
 
@@ -915,7 +1161,7 @@ public class MainController {
                 "  Ctrl+D     New folder\n" +
                 "  Ctrl+B     Backup vault\n\n" +
                 "Navigation:\n" +
-                "  Enter      Open folder / select\n" +
+                "  Enter      Navigate into folder\n" +
                 "  Backspace  Go to parent folder\n" +
                 "  Delete     Delete selected\n" +
                 "  Ctrl+F     Search files\n" +

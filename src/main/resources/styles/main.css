@@ -329,3 +329,43 @@
     -fx-background-radius: 3;
     -fx-padding: 6 10;
 }
+
+.progress-bar {
+    -fx-accent: #3498db;
+    -fx-background-color: #ecf0f1;
+    -fx-background-radius: 5;
+}
+
+.progress-bar > .bar {
+    -fx-background-color: #3498db;
+    -fx-background-radius: 5;
+    -fx-background-insets: 0;
+}
+
+.progress-bar > .track {
+    -fx-background-color: #ecf0f1;
+    -fx-background-radius: 5;
+}
+
+.progress-indicator {
+    -fx-progress-color: #3498db;
+}
+
+.button:disabled {
+    -fx-background-color: #bdc3c7;
+    -fx-text-fill: #7f8c8d;
+    -fx-cursor: default;
+}
+
+.menu-item:disabled .label {
+    -fx-text-fill: #95a5a6;
+}
+
+.warning-dialog .header-panel {
+    -fx-background-color: #f39c12;
+}
+
+.warning-dialog .content {
+    -fx-background-color: #fff3cd;
+}
+
